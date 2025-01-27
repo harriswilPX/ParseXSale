@@ -1,0 +1,130 @@
+import React, { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+const ParseX = () => {
+  const [raisedAmount, setRaisedAmount] = useState(0);
+  const [investmentAmount, setInvestmentAmount] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
+  const totalGoal = 200000;
+  const recipientAddress = "8WsA7RjuNWYYTChTdgD9e86Ag2qz7vhvxs4c8UBoEQGn";
+
+  const connectWallet = async () => {
+    if (window.solana && window.solana.isPhantom) {
+      try {
+        const response = await window.solana.connect();
+        setWalletAddress(response.publicKey.toString());
+        alert("Wallet connected: " + response.publicKey.toString());
+      } catch (err) {
+        console.error("Connection failed", err);
+        alert("Failed to connect wallet.");
+      }
+    } else {
+      alert("Phantom Wallet not found. Please install it.");
+    }
+  };
+
+  const handleBuyTokens = async () => {
+    if (!walletAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+
+    if (!investmentAmount || isNaN(investmentAmount) || Number(investmentAmount) <= 0) {
+      alert("Please enter a valid amount of USDC.");
+      return;
+    }
+
+    try {
+      const transaction = new window.solanaWeb3.Transaction();
+      const instruction = window.solanaWeb3.SystemProgram.transfer({
+        fromPubkey: new window.solanaWeb3.PublicKey(walletAddress),
+        toPubkey: new window.solanaWeb3.PublicKey(recipientAddress),
+        lamports: Number(investmentAmount) * 1000000, // Convert USDC to lamports
+      });
+
+      transaction.add(instruction);
+
+      const { signature } = await window.solana.signAndSendTransaction(transaction);
+      console.log("Transaction signature", signature);
+
+      // Update raised amount after successful transaction
+      setRaisedAmount(prev => Math.min(prev + Number(investmentAmount), totalGoal));
+      setInvestmentAmount("");
+      alert("Transaction successful! Tokens purchased.");
+    } catch (error) {
+      console.error("Transaction failed:", error);
+      alert("Transaction failed. Please try again.");
+    }
+  };
+
+  const progress = (raisedAmount / totalGoal) * 100;
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="flex justify-between items-center mb-6">
+        <Logo className="h-10" />
+        {walletAddress ? (
+          <span className="text-sm text-gray-700">Connected: {walletAddress}</span>
+        ) : (
+          <Button 
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            onClick={connectWallet}
+          >
+            Connect Phantom Wallet
+          </Button>
+        )}
+      </div>
+      <div className="max-w-4xl mx-auto">
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <h1 className="text-2xl font-bold mb-4">Token Sale</h1>
+            <p className="mb-2">Participate in the exclusive token sale for the ParseX ecosystem.</p>
+            <div className="mb-4">
+              <span className="font-medium">Progress:</span>
+              <Progress value={progress} className="mt-2" />
+              <div className="flex justify-between text-sm mt-1">
+                <span>{raisedAmount} USDC raised</span>
+                <span>{totalGoal - raisedAmount} USDC remaining</span>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <Input 
+                placeholder="Enter amount to invest" 
+                className="flex-1" 
+                value={investmentAmount} 
+                onChange={(e) => setInvestmentAmount(e.target.value)} 
+              />
+              <Button className="px-6" onClick={handleBuyTokens}>Buy Tokens</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="faq">FAQ</TabsTrigger>
+            <TabsTrigger value="terms">Terms</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details">
+            <p className="text-gray-700">This token sale is aimed at fostering the growth of ParseX’s decentralized services.</p>
+          </TabsContent>
+
+          <TabsContent value="faq">
+            <p className="text-gray-700">Find answers to common questions about the token sale.</p>
+          </TabsContent>
+
+          <TabsContent value="terms">
+            <p className="text-gray-700">By participating in this sale, you agree to our terms and conditions.</p>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+export default ParseX;
